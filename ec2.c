@@ -1,5 +1,5 @@
 //Manejo de memoria para resolver problema de no compartir memoria entre procesos creados por fork()
-// Ejemplo de Creación de un segmento de memoria compartida 
+//Obtener las raíces de una ecuación cuadrática
 #include <stdio.h> 
 #include <stdlib.h> 
 #include <unistd.h> 
@@ -54,14 +54,23 @@ int main(int argc, char *argv[])
     {
         // Proceso Padre
         printf("Proceso Padre (PID: %d) en ejecución...\n", getpid());
-        shared_data[0] *= 2; // Duplica *2 el primer valor
+        // Tarea...
+        // Forma: Raíz(b*b - 4*a*c)
+        double aux_a = shared_data[0], aux_b = shared_data[1], aux_c = shared_data[2], result = 0;
+        double discriminante = (aux_b * aux_b) - (4 * aux_a * aux_c);
+        if (discriminante < 0)
+        {
+            printf("Error: La raíz cuadrada de un número negativo no está definida en los números reales.\n");
+            shared_data[0] = 0; // O manejar el error de otra manera
+        }
+        else
+            result = sqrt((aux_b * aux_b) - (4 * aux_a * aux_c));
         printf("Proceso Padre (PID: %d) ha terminado. Valor compartido: %d\n", getpid(), shared_data[0]);
         exit(0);
     }
     else
     {
         // Esperar a que el padre termine antes de crear el hijo
-        //waitpid(pid1, NULL, 0);
         pid_t pid2 = fork();
         if (pid2 < 0)
         {
@@ -72,7 +81,7 @@ int main(int argc, char *argv[])
         {
             // Proceso hijo
             printf("Proceso hijo (PID: %d) en ejecución...\n", getpid());
-            shared_data[2] = (int)sqrt((double)shared_data[2]); // Raíz cuadrada del tercer valor
+            // Tarea...
             printf("Proceso hijo (PID: %d) ha terminado. Valor compartido: %d\n", getpid(), shared_data[2]);
             exit(0);
         }
@@ -80,7 +89,6 @@ int main(int argc, char *argv[])
         {
             // Proceso Abuelo
             printf("Proceso Abuelo (PID: %d) ejecutando su operación...\n", getpid());
-            ElevateNumb(&shared_data[1], 3); // Eleva a la potencia 3 el segundo valor
             wait(NULL);
             wait(NULL);
             // Imprimir los valores finales en la memoria compartida
@@ -110,19 +118,3 @@ int CharToInt(char *str)
     } 
     return result; 
 }
-/*
-Explicación:
-1.	Memoria Compartida:
-	Usamos shmget para crear un segmento de memoria compartida.
-	shmat lo adjunta al espacio de direcciones del proceso para su uso.
-	shmdt desasocia la memoria compartida y shmctl libera el segmento cuando ya no es necesario.
-2.	Proceso Padre:
-	Inicializa dos valores en la memoria compartida: uno para cada hijo.
-	Crea dos procesos hijos.
-3.	Proceso Hijo 1:
-	Incrementa su valor compartido en la memoria en cada iteración.
-4.	Proceso Hijo 2:
-	Incrementa su valor compartido de manera diferente (en este caso, suma de 2 en 2).
-5.	Sincronización:
-	El proceso padre usa wait() para esperar a que ambos hijos terminen.
-	Luego, imprime los valores finales de la memoria compartida.*/
