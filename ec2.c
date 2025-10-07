@@ -1,120 +1,124 @@
-//Manejo de memoria para resolver problema de no compartir memoria entre procesos creados por fork()
-//Obtener las raíces de una ecuación cuadrática
-#include <stdio.h> 
-#include <stdlib.h> 
-#include <unistd.h> 
-#include <sys/types.h> 
-#include <sys/ipc.h> 
-#include <sys/shm.h> 
-#include <sys/wait.h> 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/wait.h>
 #include <math.h>
 
-void ElevateNumb(int *base, int exp);
-int CharToInt(char *str);
+// Convertir string a número (double)
+
+double CharToDouble(char *str);
 
 int main(int argc, char *argv[])
 {
-    if(argc != 4)
+    if (argc != 4)
     {
-        printf("Error: Argumentos invalidos\nUso: %s <valor1> <valor2> <valor3>\n", argv[0]);
+        printf("Uso: %s <a> <b> <c>\n", argv[0]);
         exit(1);
     }
-    // Crear un segmento de memoria compartida 
-    int shmid; 
-    int *shared_data; 
-    key_t key = 1234; // Llave única para la memoria compartida 
 
-    // Crear un segmento de memoria compartida de tamaño para 2 enteros 
-    if ((shmid = shmget(key, 3 * sizeof(int), IPC_CREAT | 0666)) < 0) 
-    { 
+    key_t key = 1234;
+    int shmid;
+    double *shared_data;
+
+    // Crear segmento de memoria compartida
+    if ((shmid = shmget(key, 6 * sizeof(double), IPC_CREAT | 0666)) < 0)
+    {
         perror("Error al crear la memoria compartida");
-        exit(1); 
+        exit(1);
     }
-    // Adjuntar la memoria compartida
-    if ((shared_data = (int *)shmat(shmid, NULL, 0)) == (int *) -1) 
-    { 
-        perror("Error al adjuntar la memoria compartida"); 
-        exit(1); 
-    } 
-    // Inicializar los valores compartidos 
-    shared_data[0] = CharToInt(argv[1]); 
-    // Contador del primer hijo 
-    shared_data[1] = CharToInt(argv[2]);
 
-    shared_data[2] = CharToInt(argv[3]);
+    // Adjuntar memoria compartida
+    if ((shared_data = (double *)shmat(shmid, NULL, 0)) == (double *)-1)
+    {
+        perror("Error al adjuntar la memoria compartida");
+        exit(1);
+    }
 
-    printf("Valores iniciales en memoria compartida:\nPadre = %d\nAbuelo = %d\nHijo = %d\n", shared_data[0], shared_data[1], shared_data[2]);
+    // Inicializar a, b, c
+    shared_data[0] = CharToDouble(argv[1]); // a
+    shared_data[1] = CharToDouble(argv[2]); // b
+    shared_data[2] = CharToDouble(argv[3]); // c
+    shared_data[6] = 0.0; // raiz del discriminante
+
     pid_t pid1 = fork();
     if (pid1 < 0)
     {
-        perror("Error al crear al Padre");
+        perror("Error al crear el proceso Padre");
         exit(1);
     }
     else if (pid1 == 0)
     {
-        // Proceso Padre
-        printf("Proceso Padre (PID: %d) en ejecución...\n", getpid());
-        // Tarea...
-        // Forma: Raíz(b*b - 4*a*c)
-        double aux_a = shared_data[0], aux_b = shared_data[1], aux_c = shared_data[2], result = 0;
-        double discriminante = (aux_b * aux_b) - (4 * aux_a * aux_c);
+        // Proceso Padre: calcular discriminante y su raiz
+        double a = shared_data[0];
+        double b = shared_data[1];
+        double c = shared_data[2];
+
+        double discriminante = (b * b) - (4 * a * c);
         if (discriminante < 0)
         {
-            printf("Error: La raíz cuadrada de un número negativo no está definida en los números reales.\n");
-            shared_data[0] = 0; // O manejar el error de otra manera
+            printf("Padre: discriminante negativo, no hay raices reales.\n");
+            shared_data[6] = -1.0; // indicar raiz inválida
         }
         else
-            result = sqrt((aux_b * aux_b) - (4 * aux_a * aux_c));
-        printf("Proceso Padre (PID: %d) ha terminado. Valor compartido: %d\n", getpid(), shared_data[0]);
+            shared_data[3] = sqrt(discriminante); // guardar raiz
+
+        printf("Padre (PID: %d): raiz del discriminante = %.4f\n", getpid(), shared_data[3]);
         exit(0);
-    }
+    } 
     else
     {
-        // Esperar a que el padre termine antes de crear el hijo
+        wait(NULL); // Esperar al Padre
+
         pid_t pid2 = fork();
         if (pid2 < 0)
         {
-            perror("Error al crear al hijo");
+            perror("Error al crear el proceso Hijo");
             exit(1);
         }
         else if (pid2 == 0)
         {
-            // Proceso hijo
-            printf("Proceso hijo (PID: %d) en ejecución...\n", getpid());
-            // Tarea...
-            printf("Proceso hijo (PID: %d) ha terminado. Valor compartido: %d\n", getpid(), shared_data[2]);
+            // Proceso Hijo: sumar y restar los resultados
+            double a = shared_data[0];
+            double b = shared_data[1];
+            double raiz = shared_data[3];
+
+            if (shared_data[6] == -1.0)
+            {
+                printf("Hijo: no puede continuar, raiz inválida.\n");
+                exit(0);
+            }
+
+            shared_data[4] = -b + raiz; // parte positiva
+            shared_data[5] = -b - raiz; // parte negativa
+
+            printf("Hijo (PID: %d): suma = %.4f, resta = %.4f\n", getpid(), shared_data[4], shared_data[5]);
             exit(0);
         }
         else
         {
             // Proceso Abuelo
-            printf("Proceso Abuelo (PID: %d) ejecutando su operación...\n", getpid());
-            wait(NULL);
-            wait(NULL);
-            // Imprimir los valores finales en la memoria compartida
-            printf("Proceso Abuelo (PID: %d): Los valores finales son:\nPadre = %d\nAbuelo = %d\nHijo = %d\n", getpid(), shared_data[0], shared_data[1], shared_data[2]);
-            // Desasociar la memoria compartida
+            wait(NULL); // Esperar al Hijo
+
+            double a = shared_data[0];
+            double x1 = shared_data[4] / (2 * a);
+            double x2 = shared_data[5] / (2 * a);
+
+            printf("Abuelo (PID: %d): raices finales:\n", getpid());
+            printf("x1 = %.4f\tx2 = %.4f\n", x1, x2);
+
+            // Limpiar memoria
             shmdt(shared_data);
-            // Liberar el segmento de memoria compartida
             shmctl(shmid, IPC_RMID, NULL);
         }
     }
+
     return 0;
 }
-void ElevateNumb(int *base, int exp)
-{
-    int aux = base[0];
-    for(int i = 1; i < exp; ++i)
-        base[0] *= aux;
-}
 
-int CharToInt(char *str)
-{ 
-    int result = 0; 
-    while (*str) 
-    { 
-        result = result * 10 + (*str - '0');
-        str++; 
-    } 
-    return result; 
+double CharToDouble(char *str)
+{
+    return atof(str);
 }
