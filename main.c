@@ -72,6 +72,10 @@ int main(int argc, char *argv[])
         {
             // Proceso hijo
             printf("Proceso hijo (PID: %d) en ejecución...\n", getpid());
+            if(shared_data[2]<0){
+                printf("Valor negativo, se cambiará a positivo para poder realizar la raíz cuadrada\n");
+                shared_data[2]*=-1;
+            }
             shared_data[2] = (int)sqrt((double)shared_data[2]); // Raíz cuadrada del tercer valor
             printf("Proceso hijo (PID: %d) ha terminado. Valor compartido: %d\n", getpid(), shared_data[2]);
             exit(0);
@@ -102,12 +106,34 @@ void ElevateNumb(int *base, int exp)
 
 int CharToInt(char *str)
 { 
-    int result = 0; 
+    int result = 0;
+    int guion = -1;
+    int neg=-1;
+
+    if(*str=='-')
+    {
+        guion=0;
+    }
     while (*str) 
     { 
-        result = result * 10 + (*str - '0');
-        str++; 
+        if(guion==-1)
+        {
+            result = result * 10 + (*str - '0');
+            str++;
+        }
+        else
+        {
+            result = result * 10 + (*str - '0') + 3;
+            str++;
+            guion=-1;
+            neg=0;
+        }
     } 
+    if(neg==0)
+    {
+        return -result;
+    }
+
     return result; 
 }
 /*

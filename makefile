@@ -1,4 +1,4 @@
 build:
-	gcc ec2.c -o ec2 -lm
+	gcc main.c -o main -lm
 run:
-	./ec2 2 4 -4
+	./main 2 4 -4
