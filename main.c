@@ -106,35 +106,7 @@ void ElevateNumb(int *base, int exp)
 
 int CharToInt(char *str)
 { 
-    int result = 0;
-    int guion = -1;
-    int neg=-1;
-
-    if(*str=='-')
-    {
-        guion=0;
-    }
-    while (*str) 
-    { 
-        if(guion==-1)
-        {
-            result = result * 10 + (*str - '0');
-            str++;
-        }
-        else
-        {
-            result = result * 10 + (*str - '0') + 3;
-            str++;
-            guion=-1;
-            neg=0;
-        }
-    } 
-    if(neg==0)
-    {
-        return -result;
-    }
-
-    return result; 
+    return atoi(str); 
 }
 /*
 Explicación:
