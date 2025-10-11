@@ -120,5 +120,5 @@ int main(int argc, char *argv[])
 
 double CharToDouble(char *str)
 {
-    return atof(str);
+    return (double)atof(str);
 }
